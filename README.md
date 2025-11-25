@@ -19,6 +19,14 @@ This repository defines a Lakeflow style streaming pipeline that ingests invoice
 * Configuration values such as catalog, schema, and volume live in `reggie_tools.configs` so update those settings before running the pipeline.
 * The parsing stage automatically decides whether to use `ai_parse_document` based on the runtime version reported by `reggie_tools.runtimes`.
 * All stages rely on streaming semantics, so validate the pipeline inside a Databricks or compatible Lakeflow workspace with the proper secrets already configured.
+* Before deployment create an information extraction Agent Brick, then copy its endpoint identifier so you can pass it as the `information_extraction_endpoint` variable during execution.
+* Supply a Unity Catalog name via the `catalog_name` variable when launching the bundle.
+
+Example run command:
+
+```
+databricks bundle deploy --environment dev --profile FIELD-ENG-EAST --var "catalog_name=reggie_pierce" --var "information_extraction_endpoint=kie-e031b1e0-endpoint"
+```
 
 ## Testing Checklist
 * Run unit or integration tests (if available) after editing UDF logic.

@@ -9,7 +9,7 @@ variables:
     default: ${bundle.name}_${bundle.target}
   volume_name:
     default: files
-
+  information_extraction_endpoint:
 
 targets:
   dev:
@@ -27,9 +27,6 @@ include:
   - resources/*.yml
   - resources/*/*.yml
 
-
-
 sync:
   include:
     - src/**
-
