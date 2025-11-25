@@ -1,21 +1,20 @@
+from pyspark import pipelines as dp
 from pyspark.sql import functions as F
-import dlt
 
 
-@dlt.table(
+@dp.table(
     table_properties={
         "delta.feature.variantType-preview": "supported",
     },
 )
 def text_extract():
-
     if False:
-        return dlt.read_stream("file_ingest")
+        return spark.readStream.table("file_ingest")
 
-    ingest = dlt.read_stream("file_ingest").alias("ingest")
+    ingest = spark.readStream.table("file_ingest").alias("ingest")
 
     parse = (
-        dlt.read_stream("file_parse")
+        spark.readStream.table("file_parse")
         .select(
             "content_hash",
             "parsed",

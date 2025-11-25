@@ -1,0 +1,12 @@
+resources:
+  schemas:
+    document_hub_schema:
+      catalog_name: ${var.catalog_name}
+      name: ${var.schema_name}
+  volumes:
+    document_hub_volume:
+      catalog_name: ${var.catalog_name}
+      schema_name: ${var.schema_name}
+      name: ${var.volume_name}
+experimental:
+  skip_name_prefix_for_schema: true

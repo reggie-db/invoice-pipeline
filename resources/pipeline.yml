@@ -1,0 +1,25 @@
+resources:
+  pipelines:
+    invoice_pipeline:
+      name: invoice_pipeline
+      catalog: ${var.catalog_name}
+      schema: ${var.schema_name}
+      channel: PREVIEW
+      serverless: true
+      photon: true
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}/files/src
+      configuration:
+        catalog_name: ${var.catalog_name}
+        schema_name: ${var.schema_name}
+        volume_name: ${var.volume_name}
+        volume_path: ""
+      libraries:
+        - glob:
+            include: ../src/transformations/**
+      environment:
+        dependencies:
+          - 'git+https://github.com/reggie-db/reggie-bricks-py.git#subdirectory=reggie-tools'
+          - magika
+          - resvg_py
+          - pypdf
+

@@ -23,9 +23,9 @@ from typing import Dict, Callable, Optional
 
 from functools import reduce
 import pandas as pd
+from pyspark import pipelines as dp
 from pyspark.sql import functions as F, types as T
 import resvg_py
-import dlt
 
 # ---------- TYPES ----------
 
@@ -106,7 +106,7 @@ def convert_content_udf(
 # ---------- PIPELINE DEFINITION ----------
 
 
-@dlt.table(
+@dp.table(
     table_properties={
         "delta.feature.variantType-preview": "supported",
     },
