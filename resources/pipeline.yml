@@ -13,7 +13,7 @@ resources:
         schema_name: ${var.schema_name}
         volume_name: ${var.volume_name}
         volume_path: ""
-        information_extraction_endpoin: ${var.information_extraction_endpoint}
+        information_extraction_endpoint: ${var.information_extraction_endpoint}
       libraries:
         - glob:
             include: ../src/transformations/**
