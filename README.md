@@ -33,8 +33,4 @@ databricks bundle deploy --environment dev --profile FIELD-ENG-EAST --var "catal
 * Verify that each streaming table starts successfully in your target workspace.
 * Confirm the README instructions stay current whenever you add a new stage or configuration flag.
 
-## Example Json
 
-```json
-
-```
