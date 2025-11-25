@@ -8,10 +8,25 @@ from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from reggie_tools import runtimes
 
+"""
+Lakeflow stage that parses binary documents into structured text elements.
+
+Highlights:
+* joins ingestion and conversion outputs to align on identical content_hash values
+* prefers ai_parse_document on supported runtimes and falls back to PDF parsing
+* emits the parsed payload as a variant column for downstream enrichment
+"""
+
+# Determine at import time whether ai_parse_document is available.
 _supports_ai_parse = runtimes.version().startswith("17")
 
 
 def extract_text_from_pdf(content) -> str:
+    """
+    Parse PDF bytes into a compact JSON payload when AI parsing is unavailable.
+
+    The routine strips blank lines to reduce payload size while keeping ordering.
+    """
     from pypdf import PdfReader
 
     text_parts = []
@@ -34,6 +49,7 @@ def extract_text_from_pdf(content) -> str:
 
 @F.pandas_udf(T.StringType())
 def extract_text_from_pdf_udf(contents: pd.Series) -> pd.Series:
+    """Vectorized wrapper around extract_text_from_pdf for streaming workloads."""
     return pd.Series([extract_text_from_pdf(c) for c in contents])
 
 
@@ -44,6 +60,14 @@ def extract_text_from_pdf_udf(contents: pd.Series) -> pd.Series:
     },
 )
 def file_parse():
+    """
+    Join ingestion and conversion streams, then parse the binary payloads.
+
+    Returns:
+        DataFrame containing:
+            * content_hash: unique identifier carried from ingestion
+            * parsed: variant document tree from ai_parse_document or PDF fallback
+    """
     ingest = (
         spark.readStream.table("file_ingest")
         .select(
@@ -64,6 +88,7 @@ def file_parse():
 
     cond = F.expr("ingest.content_hash = conv.content_hash")
 
+    # Align records only when both raw and converted payloads exist.
     joined = ingest.join(conv, on=cond, how="inner")
 
     if _supports_ai_parse:

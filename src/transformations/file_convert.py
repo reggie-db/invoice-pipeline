@@ -1,39 +1,28 @@
-"""
-Lakeflow pipeline module for converting file content to a normalized binary format.
-
-Overview
----------
-This module reads files and applies type-specific content conversions when applicable.
-Each row in the output includes a conversion timestamp (`event_time`) that can be
-used by downstream pipelines for event-time processing and joins.
-
-Responsibilities
-----------------
-• Stream input files from an upstream source table
-• Identify supported MIME types based on registered converters
-• Apply the corresponding converter function to binary content
-• Log all conversion attempts and outcomes for observability
-• Produce a structured output table containing:
-    - `content_hash`: string — unique file identifier
-    - `converted_content`: binary — normalized or transformed file bytes
-    - `event_time`: timestamp — derived from file metadata or processing time
-"""
-
-from typing import Dict, Callable, Optional
-
 from functools import reduce
-import pandas as pd
-from pyspark import pipelines as dp
-from pyspark.sql import functions as F, types as T
-import resvg_py
+from typing import Callable, Dict, Optional
 
-# ---------- TYPES ----------
+import pandas as pd
+import resvg_py
+from pyspark import pipelines as dp
+from pyspark.sql import functions as F
+from pyspark.sql import types as T
+
+"""
+Lakeflow pipeline stage that normalizes binary file content for downstream parsing.
+
+Highlights:
+* streams records from the ingestion table and filters specific MIME prefixes
+* applies registered converters (currently SVG to bytes) while logging outcomes
+* emits `content_hash`, `event_timestamp`, and normalized `content` columns
+"""
+
+# ========= TYPES =========
 
 ContentConverter = Callable[[str, bytes], Optional[bytes]]
 
-# ---------- CONFIGURATION ----------
+# ========= CONFIGURATION =========
 
-# Registry of MIME-type prefixes mapped to converter functions
+# Registry of MIME type prefixes mapped to converter functions
 CONTENT_CONVERTERS: Dict[str, ContentConverter] = {
     "image/svg": lambda _, content: resvg_py.svg_to_bytes(
         svg_string=content.decode("utf-8", errors="replace")
@@ -47,7 +36,7 @@ MIME_TYPE_COL_FILTER = reduce(
     F.lit(False),
 )
 
-# ---------- CONVERSION LOGIC ----------
+# ========= CONVERSION LOGIC =========
 
 
 def convert_content(
@@ -68,9 +57,8 @@ def convert_content(
     from reggie_core import logs
 
     log = logs.logger()
-    log.info(f"Converting — path:{path}, mime_type:{mime_type}")
+    log.info(f"Converting | path:{path}, mime_type:{mime_type}")
     if mime_type and content:
-
         for prefix, converter in CONTENT_CONVERTERS.items():
             if not mime_type.startswith(prefix):
                 continue
@@ -78,13 +66,13 @@ def convert_content(
                 converted = converter(mime_type, content)
                 if converted is not None and converted != content:
                     log.info(
-                        f"Conversion succeeded — path:{path}, mime_type:{mime_type}"
+                        f"Conversion succeeded | path:{path}, mime_type:{mime_type}"
                     )
                     return converted
             except Exception as e:
-                log.error(f"Conversion failed — path:{path}, mime_type:{mime_type}", e)
+                log.error(f"Conversion failed | path:{path}, mime_type:{mime_type}", e)
                 continue
-    log.warning(f"No applicable converter — path:{path}, mime_type:{mime_type}")
+    log.warning(f"No applicable converter | path:{path}, mime_type:{mime_type}")
     return None
 
 
@@ -103,7 +91,7 @@ def convert_content_udf(
     )
 
 
-# ---------- PIPELINE DEFINITION ----------
+# ========= PIPELINE DEFINITION =========
 
 
 @dp.table(
@@ -120,9 +108,9 @@ def file_convert():
 
     Output:
         Emits a structured dataset containing:
-            • `content_hash` — unique file identifier
-            • `converted_content` — normalized binary data or null if unchanged
-            • `event_time` — timestamp derived from processing time
+            * `content_hash`: unique file identifier
+            * `content`: normalized binary data or null when unchanged
+            * `event_timestamp`: processing time marker
     """
     read = (
         spark.readStream.table("file_ingest")

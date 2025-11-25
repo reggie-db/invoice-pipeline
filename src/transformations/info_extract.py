@@ -1,6 +1,14 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+"""
+Lakeflow stage that calls a knowledge extraction endpoint over normalized text.
+
+Highlights:
+* reads newline joined text from `text_extract`
+* invokes `ai_query` to pull structured key information extraction (KIE) results
+"""
+
 
 @dp.table(
     table_properties={
@@ -8,6 +16,12 @@ from pyspark.sql import functions as F
     },
 )
 def info_extract():
+    """
+    Trigger AI powered key information extraction on normalized document text.
+
+    Returns:
+        Streaming DataFrame carrying original metadata and the `info` column.
+    """
 
     read = spark.readStream.table("text_extract").withColumn(
         "info",

@@ -8,18 +8,15 @@ Responsibilities:
 - Detect MIME type and extension with a vectorized Pandas UDF
 """
 
-import json
-from typing import Iterator
-from typing import Optional, Any, Iterable
-from pyspark import pipelines as dp
-import pandas as pd
-from databricks.sdk import WorkspaceClient
-from pyspark.sql import functions as F, types as T
 import io
 import logging
-from reggie_tools import configs
-from pathlib import Path
 import mimetypes
+from typing import Iterator
+
+import pandas as pd
+from pyspark import pipelines as dp
+from pyspark.sql import functions as F
+from reggie_tools import configs
 
 print(f"log handlers: {logging.root.handlers}")
 
@@ -51,7 +48,6 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
         • The optional `filename` hint improves detection for ambiguous data.
         • Logs warnings when Magika fails to identify a file.
     """
-    import re
     from magika import Magika
     from reggie_core import logs
 
