@@ -29,4 +29,4 @@ def info_parse():
         .drop("info")
     )
 
-    return df.select("parse.*")
+    return df.select("content_hash", "path", "parse.*")
