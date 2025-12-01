@@ -33,4 +33,78 @@ databricks bundle deploy --environment dev --profile FIELD-ENG-EAST --var "catal
 * Verify that each streaming table starts successfully in your target workspace.
 * Confirm the README instructions stay current whenever you add a new stage or configuration flag.
 
+## Example JSON
 
+```json
+{
+    "invoice": {
+        "invoiceNumber": "ZX90231455",
+        "invoiceDate": "2024-11-19",
+        "purchaseOrderNumber": "PO-4482917",
+        "salesOrderNumber": "SO-99218344",
+        "amountDue": {"currency": "USD", "value": 18492.75},
+        "terms": "Net 30 Days",
+        "dueDate": "2024-12-19"
+    },
+
+    "seller": {
+        "name": "Pinecrest Systems",
+        "address": ["912 Maple Terrace", "Columbus OH 43004", "USA"]
+    },
+
+    "buyer": {
+        "name": "Northwind Holdings",
+        "address": ["87 Riverbend Plaza Suite 500", "Charlotte NC 28202", "USA"]
+    },
+
+    "shipTo": {
+        "name": "Northwind Holdings",
+        "attention": "Jordan Parker",
+        "address": ["87 Riverbend Plaza Suite 500", "Charlotte NC 28202", "USA"]
+    },
+
+    "lineItems": [
+        {
+            "lineNumber": "000010",
+            "manufacturerPartNumber": "PXE21KJ",
+            "description": "ULTRA LAPTOP 14 GEN5 16G 512G GRAPHITE",
+            "quantityOrdered": 10,
+            "quantityShipped": 10,
+            "unitPrice": 1299.00,
+            "extendedPrice": 12990.00,
+            "serialNumbers": [
+                "S9T4M3K2QW", "H2LM7C8RZS", "QR5T9W2PJL", "B1KXM8Q2FJ", "Z4N7C2LMKD", "KQ2XP9S4TM",
+                "T7W9D3QFVB", "F5H9KL2XCM", "P2Z8Q7H3LW", "M9T2K4QXFS"
+            ]
+        },
+        {
+            "lineNumber": "000020",
+            "manufacturerPartNumber": "LK92MZQ",
+            "description": "CARE PACKAGE PREMIUM COVERAGE GEN5",
+            "quantityOrdered": 10,
+            "quantityShipped": 10,
+            "unitPrice": 199.00,
+            "extendedPrice": 1990.00,
+            "serialNumbers": []
+        },
+        {
+            "lineNumber": "000030",
+            "manufacturerPartNumber": "XT41QPL",
+            "description": "ULTRA LAPTOP 16 GEN5 32G 1TB GRAPHITE",
+            "quantityOrdered": 3,
+            "quantityShipped": 3,
+            "unitPrice": 1799.00,
+            "extendedPrice": 5397.00,
+            "serialNumbers": ["D8K4X1QFMA", "Z1Q7F5W9RT", "M6T2HP4QGS"]
+        }
+    ],
+
+    "totals": {
+        "subtotal": 20377.00,
+        "tax": 1115.75,
+        "shipping": 0.00,
+        "total": 18492.75,
+        "currency": "USD"
+    }
+}
+```
