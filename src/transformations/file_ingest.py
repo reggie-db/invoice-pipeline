@@ -1,13 +1,3 @@
-"""
-Lakeflow pipeline module for ingesting files from a Unity Catalog Volume.
-
-Responsibilities:
-- Ensure the target Volume exists
-- Stream files from the Volume using Auto Loader
-- Compute a content hash
-- Detect MIME type and extension with a vectorized Pandas UDF
-"""
-
 import io
 import logging
 import mimetypes
@@ -18,6 +8,31 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from reggie_tools import configs
 
+"""
+Lakeflow pipeline module for ingesting files from a Unity Catalog Volume.
+
+This module implements the entry point for the invoice processing pipeline,
+streaming binary files from a configured Volume using Databricks Auto Loader.
+It enriches each file record with computed metadata including content hashes
+and MIME type detection via the Magika ML model.
+
+Responsibilities:
+    * Stream files from the target Volume using cloudFiles format
+    * Compute SHA256 content hash for deduplication and lineage tracking
+    * Detect MIME type and file extension using Magika's ML classifier
+    * Deduplicate records based on content_hash to prevent reprocessing
+
+Output Schema:
+    - path (string): Full volume path to the source file
+    - modificationTime (timestamp): File system modification timestamp
+    - length (long): File size in bytes
+    - content (binary): Raw file content
+    - event_timestamp (timestamp): Processing timestamp
+    - content_hash (string): SHA256 hash of content for deduplication
+    - mime_type (string): Detected MIME type (e.g., application/pdf)
+    - extension (string): Inferred file extension (e.g., pdf)
+"""
+
 print(f"log handlers: {logging.root.handlers}")
 
 # ---------- UDFs ----------
@@ -26,27 +41,26 @@ print(f"log handlers: {logging.root.handlers}")
 @F.pandas_udf("mime_type string, extension string")
 def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
     """
-    Detect MIME type and best-guess file extension from in-memory binary content.
+    Detect MIME type and best guess file extension from in memory binary content.
 
-    Overview:
-        This UDF processes streaming or batch data where files are stored as
-        binary bytes in a 'content' column (rather than on disk). It uses the
-        Magika model to classify content and infer likely extensions.
+    This UDF processes streaming or batch data where files are stored as
+    binary bytes in a content column (rather than on disk). It uses the
+    Magika model to classify content and infer likely extensions.
 
-    Input:
-        Iterator of pandas DataFrames with at least:
-            - path (string): file path or name for logging/context
-            - content (binary): file content as bytes
+    Args:
+        it: Iterator of pandas DataFrames with columns:
+            - path (string): File path or name for logging/context
+            - content (binary): File content as bytes
 
-    Output:
-        Yields pandas DataFrames with:
-            - mime_type (string): detected MIME type
-            - extension (string): inferred file extension (may be None)
+    Yields:
+        pandas DataFrames with columns:
+            - mime_type (string): Detected MIME type
+            - extension (string): Inferred file extension (may be None)
 
     Notes:
-        • Uses Magika’s `identify_bytes()` for efficient inference from bytes.
-        • The optional `filename` hint improves detection for ambiguous data.
-        • Logs warnings when Magika fails to identify a file.
+        Uses Magika's identify_stream() for efficient inference from bytes.
+        Falls back to mimetypes.guess_type() when Magika fails.
+        Logs warnings when Magika cannot identify a file.
     """
     from magika import Magika
     from reggie_core import logs
@@ -57,11 +71,22 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
     def _mime_type_extension(
         path: str, content: bytes
     ) -> tuple[str | None, str | None]:
+        """
+        Determine MIME type and extension for a single file.
+
+        Args:
+            path: File path for fallback extension detection.
+            content: Binary file content to analyze.
+
+        Returns:
+            Tuple of (mime_type, extension), either may be None.
+        """
         if content:
             try:
                 with io.BytesIO(content) as stream:
                     if stream is not None:
                         output = m.identify_stream(stream).output
+                        # Magika returns extensions as list or single value
                         extension = (
                             output.extensions[0]
                             if (
@@ -78,6 +103,7 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
                     f"magika failed to identify file - path:{path}",
                     e,
                 )
+        # Fallback: extract extension from filename and guess MIME type
         if filename := path.split("/")[-1] if path else None:
             extension = filename.split(".")[-1]
             mime_type, _ = mimetypes.guess_type(filename)
@@ -96,23 +122,46 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
         yield pd.DataFrame({"mime_type": mime_types, "extension": extensions})
 
 
-# ---------- DLT tables ----------
+# ---------- DLT Tables ----------
+
+
 @dp.table(table_properties={})
 def file_ingest():
     """
-    Stream files from the Volume using Auto Loader and enrich with metadata.
+    Stream files from the Unity Catalog Volume and enrich with metadata.
+
+    This function creates the primary ingestion streaming table for the pipeline.
+    It uses Auto Loader (cloudFiles format) to incrementally process new files
+    as they arrive in the configured Volume path.
+
+    Configuration:
+        Reads the following values from pipeline configuration:
+        - catalog_name: Unity Catalog name
+        - schema_name: Schema containing the volume
+        - volume_name: Volume name to monitor
+        - volume_path: Optional subfolder within the volume
 
     Returns:
-        A streaming DataFrame with:
-            path: source file path
-            modificationTime, length: file system metadata
-            content_hash: SHA-256 hash of file content
-            mime_type, extension: detected file metadata
+        pyspark.sql.DataFrame: Streaming DataFrame with columns:
+            - path: Source file path in the volume
+            - modificationTime: File modification timestamp
+            - length: File size in bytes
+            - content: Raw binary content
+            - event_timestamp: Processing timestamp (current time)
+            - content_hash: SHA256 hash for deduplication
+            - mime_type: Detected MIME type
+            - extension: Inferred file extension
+
+    Note:
+        Records are deduplicated on content_hash to prevent reprocessing
+        identical files that may be uploaded multiple times.
     """
+    # Retrieve volume path configuration from pipeline settings
     catalog_name: str = configs.config_value("catalog_name")
     schema_name: str = configs.config_value("schema_name")
     volume_name: str = configs.config_value("volume_name")
     volume_path: str = configs.config_value("volume_path")
+
     return (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "binaryFile")
@@ -121,12 +170,17 @@ def file_ingest():
             f"/Volumes/{catalog_name}/{schema_name}/{volume_name}"
             + (f"/{volume_path}" if volume_path else "")
         )
+        # Add processing timestamp for event time tracking
         .withColumn("event_timestamp", F.current_timestamp())
+        # Compute content hash for deduplication and downstream joins
         .withColumn("content_hash", F.sha2(F.col("content"), 256))
+        # Detect MIME type and extension using Magika ML model
         .withColumn(
             "file_info", file_info_udf(F.struct(F.col("path"), F.col("content")))
         )
+        # Flatten file_info struct into top-level columns
         .select("*", "file_info.*")
         .drop("file_info")
+        # Deduplicate on content hash to prevent reprocessing identical files
         .dropDuplicates(["content_hash"])
     )

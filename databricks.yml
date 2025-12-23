@@ -1,20 +1,55 @@
-# This is a Databricks asset bundle definition for invoice_pipeline.
-# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+# =============================================================================
+# Databricks Asset Bundle Configuration for Invoice Pipeline
+# =============================================================================
+# This bundle defines a Lakeflow (DLT) streaming pipeline that ingests invoice
+# files from Unity Catalog Volumes, parses document content, and extracts
+# structured information using AI functions.
+#
+# Documentation: https://docs.databricks.com/dev-tools/bundles/index.html
+# =============================================================================
+
 bundle:
   name: invoice_pipeline
 
+# -----------------------------------------------------------------------------
+# Variables
+# -----------------------------------------------------------------------------
+# These variables are passed to the pipeline at runtime. Required variables
+# must be supplied via --var flags during bundle deployment.
+
 variables:
+  # Required: Unity Catalog name where schemas, volumes, and tables are created
   catalog_name:
+
+  # Optional: Schema name for pipeline tables. Defaults to bundle_name + target
+  # suffix in dev mode (e.g., invoice_pipeline_dev), plain bundle_name in prod.
   schema_name:
     default: ${bundle.name}_${bundle.target}
+
+  # Optional: Volume name within the schema containing source invoice files.
+  # Auto Loader monitors this volume for new files.
   volume_name:
     default: files
+
+  # Required: Endpoint identifier for the Key Information Extraction Agent.
+  # Create an Agent Brick in your workspace and copy its endpoint ID here.
   information_extraction_endpoint:
 
+# -----------------------------------------------------------------------------
+# Targets
+# -----------------------------------------------------------------------------
+# Define deployment environments. Each target can override default variables
+# and workspace settings.
+
 targets:
+  # Development target: used for iterative development and testing.
+  # Schema includes target suffix to isolate dev tables from production.
   dev:
     mode: development
     default: true
+
+  # Production target: uses cleaner schema naming without target suffix.
+  # Configure workspace root path explicitly for consistent deployments.
   prod:
     mode: production
     variables:
@@ -23,9 +58,21 @@ targets:
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
 
+# -----------------------------------------------------------------------------
+# Resource Includes
+# -----------------------------------------------------------------------------
+# Load additional resource definitions from the resources directory.
+# This includes pipeline.yml (DLT config) and uc.yml (Unity Catalog resources).
+
 include:
   - resources/*.yml
   - resources/*/*.yml
+
+# -----------------------------------------------------------------------------
+# Sync Configuration
+# -----------------------------------------------------------------------------
+# Specify which local files are synced to the workspace during deployment.
+# The src directory contains all transformation modules used by the pipeline.
 
 sync:
   include:

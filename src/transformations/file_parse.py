@@ -11,13 +11,24 @@ from reggie_tools import runtimes
 """
 Lakeflow stage that parses binary documents into structured text elements.
 
+This module joins the ingestion and conversion streams, then applies document
+parsing to extract text and structural information. It automatically selects
+between Databricks AI Functions (ai_parse_document) on supported runtimes and
+a pypdf based fallback for older environments.
+
 Highlights:
-* joins ingestion and conversion outputs to align on identical content_hash values
-* prefers ai_parse_document on supported runtimes and falls back to PDF parsing
-* emits the parsed payload as a variant column for downstream enrichment
+    * Joins file_ingest and file_convert outputs on content_hash
+    * Prefers ai_parse_document on runtime 17+ for superior document understanding
+    * Falls back to pypdf text extraction for PDF files on older runtimes
+    * Emits parsed payload as a variant column for flexible downstream processing
+
+Output Schema:
+    - content_hash (string): SHA256 identifier linking to source file
+    - parsed (variant): Structured document tree with elements array
 """
 
 # Determine at import time whether ai_parse_document is available.
+# Runtime 17+ includes the AI Functions preview feature.
 _supports_ai_parse = runtimes.version().startswith("17")
 
 
@@ -25,7 +36,15 @@ def extract_text_from_pdf(content) -> str:
     """
     Parse PDF bytes into a compact JSON payload when AI parsing is unavailable.
 
-    The routine strips blank lines to reduce payload size while keeping ordering.
+    Uses pypdf to extract text from each page, then formats it into the same
+    JSON structure that ai_parse_document produces for consistency.
+
+    Args:
+        content: Binary PDF content to parse.
+
+    Returns:
+        JSON string with structure: {"document": {"elements": [{"content": "...", "type": "text"}]}}
+        This matches the ai_parse_document output schema for downstream compatibility.
     """
     from pypdf import PdfReader
 
@@ -38,9 +57,12 @@ def extract_text_from_pdf(content) -> str:
             if text:
                 text_parts.append(text)
 
+    # Join pages and normalize whitespace
     text = "\n".join(text_parts)
-    text = re.sub(r"\n+", "\n", text)
+    text = re.sub(r"\n+", "\n", text)  # Collapse multiple newlines
     lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    # Wrap in document structure matching ai_parse_document output
     parsed = {
         "document": {"elements": [{"content": ("\n".join(lines)), "type": "text"}]}
     }
@@ -49,7 +71,15 @@ def extract_text_from_pdf(content) -> str:
 
 @F.pandas_udf(T.StringType())
 def extract_text_from_pdf_udf(contents: pd.Series) -> pd.Series:
-    """Vectorized wrapper around extract_text_from_pdf for streaming workloads."""
+    """
+    Vectorized wrapper around extract_text_from_pdf for streaming workloads.
+
+    Args:
+        contents: Series of binary PDF content.
+
+    Returns:
+        Series of JSON strings containing parsed document structure.
+    """
     return pd.Series([extract_text_from_pdf(c) for c in contents])
 
 
@@ -61,13 +91,27 @@ def extract_text_from_pdf_udf(contents: pd.Series) -> pd.Series:
 )
 def file_parse():
     """
-    Join ingestion and conversion streams, then parse the binary payloads.
+    Join ingestion and conversion streams, then parse binary payloads into structured text.
+
+    This function performs a streaming inner join between file_ingest (raw files)
+    and file_convert (normalized content) on content_hash. It then applies document
+    parsing to extract text and structural elements.
+
+    The parsing method is selected automatically:
+        - Runtime 17+: Uses ai_parse_document with version 2.0 for best results
+        - Older runtimes: Falls back to pypdf text extraction
 
     Returns:
-        DataFrame containing:
-            * content_hash: unique identifier carried from ingestion
-            * parsed: variant document tree from ai_parse_document or PDF fallback
+        pyspark.sql.DataFrame: Streaming DataFrame with columns:
+            - content_hash: Unique file identifier for downstream joins
+            - parsed: Variant column containing document structure
+
+    Note:
+        The join requires both raw and converted records to exist, ensuring
+        that files have passed through the conversion stage even if no
+        actual conversion was applied.
     """
+    # Read raw content from ingestion stage
     ingest = (
         spark.readStream.table("file_ingest")
         .select(
@@ -77,6 +121,7 @@ def file_parse():
         .alias("ingest")
     )
 
+    # Read converted content (may be null if no conversion applied)
     conv = (
         spark.readStream.table("file_convert")
         .select(
@@ -88,11 +133,11 @@ def file_parse():
 
     cond = F.expr("ingest.content_hash = conv.content_hash")
 
-    # Align records only when both raw and converted payloads exist.
+    # Inner join ensures both streams have processed the file
     joined = ingest.join(conv, on=cond, how="inner")
 
     if _supports_ai_parse:
-        # Runtime seventeen introduces ai_parse_document with version flag.
+        # Runtime 17+ supports ai_parse_document with enhanced document understanding
         parsed_expr = F.expr(
             """
             ai_parse_document(
@@ -102,7 +147,7 @@ def file_parse():
             """
         )
     else:
-        # Fallback to PDF text extraction when AI parsing is unavailable.
+        # Fallback to pypdf text extraction on older runtimes
         parsed_expr = F.try_parse_json(
             extract_text_from_pdf_udf(F.col("ingest.content"))
         )

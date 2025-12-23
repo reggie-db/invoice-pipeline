@@ -1,25 +1,59 @@
+# =============================================================================
+# Lakeflow Pipeline Definition
+# =============================================================================
+# Defines the DLT pipeline that orchestrates invoice processing stages.
+# Each transformation module in src/transformations/ defines a streaming table
+# that is automatically wired together based on readStream dependencies.
+# =============================================================================
+
 resources:
   pipelines:
     invoice_pipeline:
+      # Display name shown in the Databricks workspace UI
       name: invoice_pipeline
+
+      # Unity Catalog location for output tables
       catalog: ${var.catalog_name}
       schema: ${var.schema_name}
+
+      # Use PREVIEW channel for access to latest DLT features (e.g., variant types)
       channel: PREVIEW
+
+      # Compute configuration: serverless with Photon for optimal performance
       serverless: true
       photon: true
+
+      # Workspace path where source files are deployed during bundle sync
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}/files/src
+
+      # Runtime configuration passed to transformation modules via spark conf.
+      # Access these values using reggie_tools.configs.config_value() in Python.
       configuration:
+        # Unity Catalog identifiers for volume path construction
         catalog_name: ${var.catalog_name}
         schema_name: ${var.schema_name}
         volume_name: ${var.volume_name}
+
+        # Optional subfolder path within the volume (empty = root of volume)
         volume_path: ""
+
+        # Agent endpoint for ai_query calls in info_extract stage
         information_extraction_endpoint: ${var.information_extraction_endpoint}
+
+      # Source code libraries containing DLT table definitions
       libraries:
         - glob:
             include: ../src/transformations/**
+
+      # Python dependencies installed in the pipeline cluster environment.
+      # reggie_tools provides config helpers; other packages support parsing.
       environment:
         dependencies:
+          # Custom utilities for config management and runtime detection
           - "git+https://github.com/reggie-db/reggie-bricks-py.git#subdirectory=reggie-tools"
+          # Magika: ML based file type detection for MIME inference
           - magika
+          # resvg_py: SVG to PNG rasterization for image normalization
           - resvg_py
+          # pypdf: PDF text extraction fallback when ai_parse_document unavailable
           - pypdf
