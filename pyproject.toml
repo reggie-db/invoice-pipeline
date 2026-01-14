@@ -11,9 +11,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "magika",
-    "resvg_py",
     "pypdf",
-    "pandas-stubs~=2.3.3",
 ]
 
 
@@ -22,6 +20,7 @@ dev = ["uv",
     "pytest",
     "databricks-connect>=17.0,<17.3",
     "databricks-sdk>=0.73.0",
+    "pandas-stubs"
 ]
 
 [tool.uv_build]
