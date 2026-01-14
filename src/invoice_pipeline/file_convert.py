@@ -35,7 +35,7 @@ ContentConverter = Callable[[str, bytes], Optional[bytes]]
 # ========= CONFIGURATION =========
 
 # Registry mapping MIME type prefixes to converter functions.
-# Add new converters here to support additional file type invoice_pipeline.
+# Add new converters here to support additional file type transformations.
 CONTENT_CONVERTERS: Dict[str, ContentConverter] = {
     # SVG files are rasterized to PNG for consistent image processing
     "image/svg": lambda _, content: resvg_py.svg_to_bytes(

@@ -8,7 +8,6 @@ A Lakeflow (DLT) streaming pipeline that ingests invoice files from Unity Catalo
 |-------------|-------|
 | Databricks Workspace | Must support Lakeflow Declarative Pipelines (serverless or classic) |
 | Unity Catalog | Required for Volume based file ingestion and schema/table management |
-| `reggie_tools` library | Installed automatically via bundle; provides `configs`, `runtimes`, and `funcs` helpers |
 | AI Functions | `ai_parse_document` available on runtime 17+; `ai_query` requires a deployed Agent endpoint |
 
 ## Architecture Overview
@@ -71,10 +70,12 @@ A Lakeflow (DLT) streaming pipeline that ingests invoice files from Unity Catalo
 
 | Path | Description |
 |------|-------------|
-| `src/transformations/` | Spark DLT table definitions. Each module contains docstrings and inline comments explaining stage responsibilities. |
+| `src/invoice_pipeline/` | Spark DLT table definitions. Each module contains docstrings and inline comments explaining stage responsibilities. |
+| `src/invoice_pipeline/config.py` | Configuration helper that reads values from widgets, Spark conf, or environment variables. |
 | `resources/pipeline.yml` | Lakeflow pipeline definition wiring DLT tables together with dependencies and configuration. |
 | `resources/uc.yml` | Unity Catalog resource definitions (schema and volume) for the ingestion stage. |
 | `databricks.yml` | Databricks Asset Bundle root configuration defining variables, targets, and includes. |
+| `requirements.txt` | Python dependencies (magika, pypdf) installed in the pipeline cluster environment. |
 
 ## Configuration Variables
 
@@ -123,8 +124,8 @@ The pipeline will automatically ingest new files via Auto Loader.
 
 ## Development Notes
 
-* Configuration values such as catalog, schema, and volume are read at runtime via `reggie_tools.configs`. Update pipeline configuration or bundle variables before running.
-* The parsing stage (`file_parse`) automatically selects `ai_parse_document` vs. PDF fallback based on the runtime version reported by `reggie_tools.runtimes`.
+* Configuration values such as catalog, schema, and volume are read at runtime via `invoice_pipeline.config.get()`. This helper checks widgets, Spark conf, and environment variables in order.
+* The parsing stage (`file_parse`) automatically selects `ai_parse_document` vs. PDF fallback based on the `DATABRICKS_RUNTIME_VERSION` environment variable (runtime 17+ required for AI parsing).
 * All stages rely on streaming semantics. Validate the pipeline inside a Databricks workspace with proper secrets and Unity Catalog permissions.
 * The pipeline runs in serverless mode with Photon enabled by default. See `resources/pipeline.yml` to adjust compute settings.
 
