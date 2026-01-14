@@ -1,0 +1,31 @@
+[build-system]
+requires = ["uv_build>=0.9.6,<0.10.0"]
+build-backend = "uv_build"
+
+
+
+[project]
+name = "invoice-pipeline"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "magika",
+    "resvg_py",
+    "pypdf",
+    "pandas-stubs~=2.3.3",
+]
+
+
+[dependency-groups]
+dev = ["uv",
+    "pytest",
+    "databricks-connect>=17.0,<17.3",
+    "databricks-sdk>=0.73.0",
+]
+
+[tool.uv_build]
+package-dir = { "" = "src" }
+
+
+

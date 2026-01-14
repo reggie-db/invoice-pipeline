@@ -62,7 +62,7 @@ targets:
 # Resource Includes
 # -----------------------------------------------------------------------------
 # Load additional resource definitions from the resources directory.
-# This includes pipeline.yml (DLT config) and uc.yml (Unity Catalog resources).
+# This includes pipeline.yml (DLT utils) and uc.yml (Unity Catalog resources).
 
 include:
   - resources/*.yml
@@ -77,3 +77,8 @@ include:
 sync:
   include:
     - src/**
+  exclude:
+    - ".*"
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+    - "**/.venv/**"

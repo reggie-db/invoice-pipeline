@@ -2,7 +2,7 @@
 # Lakeflow Pipeline Definition
 # =============================================================================
 # Defines the DLT pipeline that orchestrates invoice processing stages.
-# Each transformation module in src/transformations/ defines a streaming table
+# Each transformation module in src/invoice_pipeline/ defines a streaming table
 # that is automatically wired together based on readStream dependencies.
 # =============================================================================
 
@@ -43,17 +43,11 @@ resources:
       # Source code libraries containing DLT table definitions
       libraries:
         - glob:
-            include: ../src/transformations/**
+            include: ../src/invoice_pipeline/**
+
 
       # Python dependencies installed in the pipeline cluster environment.
-      # reggie_tools provides config helpers; other packages support parsing.
+      # reggie_tools provides utils helpers; other packages support parsing.
       environment:
         dependencies:
-          # Custom utilities for config management and runtime detection
-          - "git+https://github.com/reggie-db/reggie-bricks-py.git#subdirectory=reggie-tools"
-          # Magika: ML based file type detection for MIME inference
-          - magika
-          # resvg_py: SVG to PNG rasterization for image normalization
-          - resvg_py
-          # pypdf: PDF text extraction fallback when ai_parse_document unavailable
-          - pypdf
+          - -r ../requirements.txt

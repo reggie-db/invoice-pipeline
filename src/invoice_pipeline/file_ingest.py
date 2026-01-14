@@ -6,7 +6,8 @@ from typing import Iterator
 import pandas as pd
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
-from reggie_tools import configs
+
+from invoice_pipeline import config
 
 """
 Lakeflow pipeline module for ingesting files from a Unity Catalog Volume.
@@ -34,6 +35,7 @@ Output Schema:
 """
 
 print(f"log handlers: {logging.root.handlers}")
+
 
 # ---------- UDFs ----------
 
@@ -63,13 +65,12 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
         Logs warnings when Magika cannot identify a file.
     """
     from magika import Magika
-    from reggie_core import logs
 
-    log = logs.logger()
+    log = logging.getLogger(__name__)
     m = Magika()
 
     def _mime_type_extension(
-        path: str, content: bytes
+            path: str, content: bytes
     ) -> tuple[str | None, str | None]:
         """
         Determine MIME type and extension for a single file.
@@ -90,8 +91,8 @@ def file_info_udf(it: Iterator[pd.DataFrame]) -> Iterator[pd.DataFrame]:
                         extension = (
                             output.extensions[0]
                             if (
-                                isinstance(output.extensions, list)
-                                and output.extensions
+                                    isinstance(output.extensions, list)
+                                    and output.extensions
                             )
                             else output.extensions
                         )
@@ -157,10 +158,10 @@ def file_ingest():
         identical files that may be uploaded multiple times.
     """
     # Retrieve volume path configuration from pipeline settings
-    catalog_name: str = configs.config_value("catalog_name")
-    schema_name: str = configs.config_value("schema_name")
-    volume_name: str = configs.config_value("volume_name")
-    volume_path: str = configs.config_value("volume_path")
+    catalog_name: str = config.get("catalog_name")
+    schema_name: str = config.get("schema_name")
+    volume_name: str = config.get("volume_name")
+    volume_path: str = config.get("volume_path")
 
     return (
         spark.readStream.format("cloudFiles")

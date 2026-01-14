@@ -1,6 +1,7 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
-from reggie_tools import configs
+
+from invoice_pipeline import config
 
 """
 Lakeflow stage that invokes AI powered key information extraction (KIE).
@@ -41,7 +42,7 @@ def info_extract():
     by the info_parse stage.
 
     Configuration:
-        The `information_extraction_endpoint` config value must point to a valid
+        The `information_extraction_endpoint` utils value must point to a valid
         Agent Brick endpoint. Create this endpoint in your Databricks workspace
         before running the pipeline.
 
@@ -60,7 +61,7 @@ def info_extract():
         Failed extractions will have null info values.
     """
     # Retrieve the KIE endpoint identifier from pipeline configuration
-    information_extraction_endpoint: str = configs.config_value(
+    information_extraction_endpoint: str = config.get(
         "information_extraction_endpoint"
     )
 

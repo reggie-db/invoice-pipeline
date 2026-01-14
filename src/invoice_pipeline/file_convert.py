@@ -1,3 +1,4 @@
+import logging
 from functools import reduce
 from typing import Callable, Dict, Optional
 
@@ -34,7 +35,7 @@ ContentConverter = Callable[[str, bytes], Optional[bytes]]
 # ========= CONFIGURATION =========
 
 # Registry mapping MIME type prefixes to converter functions.
-# Add new converters here to support additional file type transformations.
+# Add new converters here to support additional file type invoice_pipeline.
 CONTENT_CONVERTERS: Dict[str, ContentConverter] = {
     # SVG files are rasterized to PNG for consistent image processing
     "image/svg": lambda _, content: resvg_py.svg_to_bytes(
@@ -42,19 +43,12 @@ CONTENT_CONVERTERS: Dict[str, ContentConverter] = {
     )
 }
 
-# Build a combined filter condition matching any registered MIME prefix.
-# This determines which records are candidates for conversion.
-MIME_TYPE_COL_FILTER = reduce(
-    lambda a, b: a | b,
-    (F.col("mime_type").like(f"{k}%") for k in CONTENT_CONVERTERS.keys()),
-    F.lit(False),
-)
 
 # ========= CONVERSION LOGIC =========
 
 
 def convert_content(
-    path: str, mime_type: Optional[str], content: Optional[bytes]
+        path: str, mime_type: Optional[str], content: Optional[bytes]
 ) -> Optional[bytes]:
     """
     Attempt to convert file content based on its MIME type.
@@ -71,9 +65,8 @@ def convert_content(
         Converted binary data if a matching converter applies and succeeds.
         None if no converter matches, conversion fails, or content is empty.
     """
-    from reggie_core import logs
 
-    log = logs.logger()
+    log = logging.getLogger(__name__)
     log.info(f"Converting | path:{path}, mime_type:{mime_type}")
 
     if mime_type and content:
@@ -99,7 +92,7 @@ def convert_content(
 
 @F.pandas_udf(T.BinaryType())
 def convert_content_udf(
-    paths: pd.Series, mime_types: pd.Series, contents: pd.Series
+        paths: pd.Series, mime_types: pd.Series, contents: pd.Series
 ) -> pd.Series:
     """
     Vectorized UDF wrapper for content conversion across distributed batches.
@@ -151,6 +144,14 @@ def file_convert():
         The file_parse stage uses the original content from file_ingest
         when the converted content is null.
     """
+
+    # Build a combined filter condition matching any registered MIME prefix.
+    # This determines which records are candidates for conversion.
+    mime_type_col_filter = reduce(
+        lambda a, b: a | b,
+        (F.col("mime_type").like(f"{k}%") for k in CONTENT_CONVERTERS.keys()),
+        F.lit(False),
+    )
     read = (
         spark.readStream.table("file_ingest")
         .withColumn("event_timestamp", F.current_timestamp())
@@ -158,7 +159,7 @@ def file_convert():
             "content",
             # Only attempt conversion for matching MIME types
             F.when(
-                MIME_TYPE_COL_FILTER,
+                mime_type_col_filter,
                 convert_content_udf(
                     F.col("path"),
                     F.col("mime_type"),

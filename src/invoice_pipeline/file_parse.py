@@ -1,12 +1,13 @@
 import io
 import json
+import os
 import re
 
 import pandas as pd
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
-from reggie_tools import runtimes
+from packaging.version import Version
 
 """
 Lakeflow stage that parses binary documents into structured text elements.
@@ -26,10 +27,6 @@ Output Schema:
     - content_hash (string): SHA256 identifier linking to source file
     - parsed (variant): Structured document tree with elements array
 """
-
-# Determine at import time whether ai_parse_document is available.
-# Runtime 17+ includes the AI Functions preview feature.
-_supports_ai_parse = runtimes.version().startswith("17")
 
 
 def extract_text_from_pdf(content) -> str:
@@ -136,7 +133,7 @@ def file_parse():
     # Inner join ensures both streams have processed the file
     joined = ingest.join(conv, on=cond, how="inner")
 
-    if _supports_ai_parse:
+    if _supports_ai_parse():
         # Runtime 17+ supports ai_parse_document with enhanced document understanding
         parsed_expr = F.expr(
             """
@@ -158,3 +155,14 @@ def file_parse():
         F.col("ingest.content_hash").alias("content_hash"),
         F.col("parsed"),
     )
+
+
+# Determine at import time whether ai_parse_document is available.
+# Runtime 17+ includes the AI Functions preview feature.
+def _supports_ai_parse():
+    databricks_runtime_version = os.environ.get("DATABRICKS_RUNTIME_VERSION", None)
+    if databricks_runtime_version:
+        runtime_version = Version(databricks_runtime_version)
+        if runtime_version >= Version("17"):
+            return True
+    return False
