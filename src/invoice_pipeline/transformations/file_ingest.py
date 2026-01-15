@@ -7,7 +7,7 @@ import pandas as pd
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from invoice_pipeline import config
+from invoice_pipeline.transformations import config
 
 """
 Lakeflow pipeline module for ingesting files from a Unity Catalog Volume.
@@ -158,10 +158,10 @@ def file_ingest():
         identical files that may be uploaded multiple times.
     """
     # Retrieve volume path configuration from pipeline settings
-    catalog_name: str = config.get("catalog_name")
-    schema_name: str = config.get("schema_name")
-    volume_name: str = config.get("volume_name")
-    volume_path: str = config.get("volume_path")
+    catalog_name: str = config.get("catalog_name", dbutils=dbutils, spark=spark)
+    schema_name: str = config.get("schema_name", dbutils=dbutils, spark=spark)
+    volume_name: str = config.get("volume_name", dbutils=dbutils, spark=spark)
+    volume_path: str = config.get("volume_path", dbutils=dbutils, spark=spark)
 
     return (
         spark.readStream.format("cloudFiles")

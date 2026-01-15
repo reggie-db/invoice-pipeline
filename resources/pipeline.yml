@@ -8,13 +8,13 @@
 
 resources:
   pipelines:
-    invoice_pipeline:
+    pipeline:
       # Display name shown in the Databricks workspace UI
       name: invoice_pipeline
 
       # Unity Catalog location for output tables
       catalog: ${var.catalog_name}
-      schema: ${var.schema_name}
+      schema: ${resources.schemas.schema.name}
 
       # Use PREVIEW channel for access to latest DLT features (e.g., variant types)
       channel: PREVIEW
@@ -24,15 +24,15 @@ resources:
       photon: true
 
       # Workspace path where source files are deployed during bundle sync
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}/files/src
+      root_path: ../src/invoice_pipeline
 
       # Runtime configuration passed to transformation modules via spark conf.
       # Access these values using reggie_tools.configs.config_value() in Python.
       configuration:
         # Unity Catalog identifiers for volume path construction
         catalog_name: ${var.catalog_name}
-        schema_name: ${var.schema_name}
-        volume_name: ${var.volume_name}
+        schema_name: ${resources.schemas.schema.name}
+        volume_name: ${resources.volumes.volume.name}
 
         # Optional subfolder path within the volume (empty = root of volume)
         volume_path: ""
@@ -43,11 +43,11 @@ resources:
       # Source code libraries containing DLT table definitions
       libraries:
         - glob:
-            include: ../src/invoice_pipeline/**
+            include: ../src/invoice_pipeline/transformations/**
 
 
       # Python dependencies installed in the pipeline cluster environment.
       # reggie_tools provides utils helpers; other packages support parsing.
       environment:
         dependencies:
-          - -r ../requirements.txt
+          - ../dist/*.whl

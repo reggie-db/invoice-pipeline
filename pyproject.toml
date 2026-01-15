@@ -12,16 +12,21 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "magika",
     "pypdf",
+    "resvg_py",
 ]
 
 
 [dependency-groups]
-dev = ["uv",
+dev = [
+    "uv",
     "pytest",
-    "databricks-connect>=17.0,<17.3",
     "databricks-sdk>=0.73.0",
-    "pandas-stubs"
+    "databricks-connect>=17.0,<17.3",
+    "pyspark>=3.5.0",
+    "pandas-stubs",
+    "wrapt>=2.0.0",
 ]
+
 
 [tool.uv_build]
 package-dir = { "" = "src" }

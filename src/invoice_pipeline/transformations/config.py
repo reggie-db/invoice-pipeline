@@ -1,6 +1,8 @@
 import os
+from typing import Callable
 
 from databricks.sdk.runtime.dbutils_stub import dbutils
+from pyspark.sql import SparkSession
 
 """
 Configuration helper for retrieving pipeline settings from multiple sources.
@@ -21,7 +23,7 @@ to accommodate different naming conventions.
 
 
 # noinspection PyBroadException
-def get(name: str):
+def get(name: str, dbutils: dbutils | None = None, spark: SparkSession | None = None) -> str | None:
     """
     Retrieve a configuration value from widgets, Spark conf, or environment.
 
@@ -42,12 +44,18 @@ def get(name: str):
         to the next source. This is intentional to support environments
         where not all sources are available.
     """
+    readers: list[Callable[[str], str]] = []
+    if spark is not None:
+        readers.append(spark.conf.get)
+    if dbutils is not None:
+        readers.append(dbutils.widgets.get)
+    readers.append(lambda n: os.environ.get(n, None))
     for upper in (False, True):
         key = name.upper() if upper else name
         # Try each configuration source in order of precedence
-        for fn in (lambda n: dbutils.widgets.get(n), lambda n: spark.conf.get, lambda n: os.environ.get(n, None)):
+        for reader in readers:
             try:
-                if (value := fn(key)) is not None:
+                if (value := reader(key)) is not None:
                     return value
             except Exception:
                 # Silently continue to next source on failure

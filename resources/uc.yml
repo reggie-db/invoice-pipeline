@@ -11,8 +11,9 @@ resources:
   # ---------------------------------------------------------------------------
   # The schema serves as a namespace for all pipeline tables and the ingestion
   # volume. Name varies by target (dev includes suffix, prod uses base name).
+
   schemas:
-    document_hub_schema:
+    schema:
       catalog_name: ${var.catalog_name}
       name: ${var.schema_name}
 
@@ -21,16 +22,13 @@ resources:
   # ---------------------------------------------------------------------------
   # Unity Catalog managed volume where source invoice files are uploaded.
   # Auto Loader in file_ingest monitors this volume for new arrivals.
+
   volumes:
-    document_hub_volume:
+    volume:
       catalog_name: ${var.catalog_name}
-      schema_name: ${var.schema_name}
+      schema_name: ${resources.schemas.schema.name}
       name: ${var.volume_name}
 
-# -----------------------------------------------------------------------------
-# Experimental Settings
-# -----------------------------------------------------------------------------
-# Prevents the bundle from prepending a prefix to schema names, keeping names
-# consistent with the configured variable values.
 experimental:
   skip_name_prefix_for_schema: true
+

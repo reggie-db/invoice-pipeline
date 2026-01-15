@@ -1,7 +1,7 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from invoice_pipeline import config
+from invoice_pipeline.transformations import config
 
 """
 Lakeflow stage that invokes AI powered key information extraction (KIE).
@@ -62,7 +62,7 @@ def info_extract():
     """
     # Retrieve the KIE endpoint identifier from pipeline configuration
     information_extraction_endpoint: str = config.get(
-        "information_extraction_endpoint"
+        "information_extraction_endpoint", dbutils=dbutils, spark=spark
     )
 
     read = spark.readStream.table("text_extract").withColumn(

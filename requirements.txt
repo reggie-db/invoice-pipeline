@@ -4,3 +4,5 @@ magika==1.0.1
     # via invoice-pipeline (pyproject.toml)
 pypdf==6.6.0
     # via invoice-pipeline (pyproject.toml)
+resvg-py==0.2.6
+    # via invoice-pipeline (pyproject.toml)

@@ -4,4 +4,7 @@
     <option name="sdkName" value="uv (invoice-pipeline)" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="uv (invoice-pipeline)" project-jdk-type="Python SDK" />
+  <component name="RuffConfiguration">
+    <option name="executableDiscoveryMode" value="PATH" />
+  </component>
 </project>
