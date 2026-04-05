@@ -191,3 +191,5 @@ nohup.out
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+.databricks

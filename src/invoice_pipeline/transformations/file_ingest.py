@@ -7,7 +7,7 @@ import pandas as pd
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from invoice_pipeline.transformations import config
+from invoice_pipeline.common import config
 
 """
 Lakeflow pipeline module for ingesting files from a Unity Catalog Volume.

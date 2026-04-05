@@ -1,7 +1,7 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from invoice_pipeline.transformations import config
+from invoice_pipeline.common import config
 
 """
 Lakeflow stage that invokes AI powered key information extraction (KIE).
